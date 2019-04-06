@@ -20,6 +20,12 @@ void print_vector(std::vector<double> const &input) {
   }
 }
 
+void print_vector(std::vector<string> const &input) {
+  for(int i = 0; i < input.size(); i++) {
+    std::cout << input.at(i) << ' ' ;
+  }
+}
+
 int main() {
   uWS::Hub h;
 
@@ -117,19 +123,87 @@ int main() {
               double check_speed = sqrt(vx*vx+vy*vy);
               double check_car_s = sensor_fusion[i][5];
 
+              // 0.02 since the car will visit a point every 0.02 seconds 
               check_car_s += ((double)prev_size * 0.02 * check_speed); // predict next s for the given car
               if((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
                 //ref_vel = 29.5; //mph
                 too_close = true;
 
                 // if car in the future is within 30 m and it is safe to change lanes, then change lane.
-                if(lane > 0) {
-                  lane = 0;
+                //if(lane > 0) {
+                //  lane = 0;
+                //}
+                vector<string> possible_actions;
+                if(lane == 0) {
+                  possible_actions.push_back("Right");
+                } else if(lane == 1) {
+                  possible_actions.push_back("Left");
+                  possible_actions.push_back("Right");
+                } else {
+                  possible_actions.push_back("Left");
+                }
+
+                std::cout << "########## possible_actions ############" << "\n";
+                print_vector(possible_actions);
+                std::cout << "########## possible_actions ############" << "\n";
+
+                //// Lane switching logic
+                bool switch_lane = true;
+                int next_lane; 
+
+                // For each possible state, from sensor fusion data loop through all the cars from the possible next lane
+                for(int s = 0; s < possible_actions.size(); s++) {
+                  std::cout << "##########************************* possible_action ############" << "\n";
+                  std::cout << possible_actions[s] << "\n";
+                  std::cout << "########## possible_action ############" << "\n";
+                  if(possible_actions[s] == "Right") {
+                    next_lane = lane + 1; 
+                  } else { 
+                    next_lane = lane - 1; 
+                  } 
+
+                  for(int j = 0; j < sensor_fusion.size(); j++) {
+                    // verify is a car is in the current lane
+                    float df = sensor_fusion[j][6];
+                    if(df < (2 + 4*next_lane +2) && df > (2 + 4*next_lane -2)) {
+                      double vfx = sensor_fusion[j][3];
+                      double vfy = sensor_fusion[j][4];
+                      double check_speed_f = sqrt(vfx*vfx+vfy*vfy);
+                      double check_car_s_f = sensor_fusion[j][5];
+                      //car_s = car_s / 0.5;
+
+                      // 0.02 since the car will visit a point every 0.02 seconds 
+                      // check_car_s_f += (check_speed_f / 2.24 * 0.5); // predict next s for the given car
+                      check_car_s_f += (check_speed_f / 2.24); // predict next s for the given car
+                      //if(((check_car_s_f > car_s) && ((check_car_s_f - car_s) < 30)) || ) {
+                      if(((check_car_s_f > car_s) && ((check_car_s_f - car_s) < 30)) || ((check_car_s_f < car_s) && ((car_s - check_car_s_f) < 30))) {
+                        switch_lane = false;
+                        std::cout << "######## breaking out of inner for loop ###########" << "\n";
+                        break;
+                      }
+                    }
+                  }
+
+                  // favoring left lane switches
+                  if(switch_lane) {
+                    std::cout << "!!!!!!!! switching to left lane !!!!!!!!!!!!" << "\n";
+                    break;
+                  }
+                  switch_lane = true; 
+                  std::cout << "!!!!!!!! left change not possible, looking at the right lane !!!!!!!!!!!!" << "\n";
+                }
+
+                if(switch_lane) {
+                  lane = next_lane; 
                 }
               }
-              
             }
           }
+
+          std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n"; 
+          std::cout << lane << "\n"; 
+          std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n"; 
+          std::cout << "\n"; 
 
           if (too_close) {
             ref_vel -= .224;
@@ -146,8 +220,8 @@ int main() {
           vector<double> ptsx;
           vector<double> ptsy;
 
-          double ref_x = car_x;
-          double ref_y = car_y;
+          double anchor_points_x = car_x;
+          double anchor_points_y = car_y;
           double ref_yaw = deg2rad(car_yaw);
 
           if (prev_size < 2) {
@@ -162,18 +236,18 @@ int main() {
 
           } else {
 
-            ref_x = previous_path_x[prev_size - 1];
-            ref_y = previous_path_y[prev_size - 1];
+            anchor_points_x = previous_path_x[prev_size - 1];
+            anchor_points_y = previous_path_y[prev_size - 1];
 
-            double ref_x_prev = previous_path_x[prev_size - 2];
-            double ref_y_prev = previous_path_y[prev_size - 2];
-            ref_yaw = atan2(ref_y - ref_y_prev, ref_x - ref_x_prev);
+            double anchor_points_x_prev = previous_path_x[prev_size - 2];
+            double anchor_points_y_prev = previous_path_y[prev_size - 2];
+            ref_yaw = atan2(anchor_points_y - anchor_points_y_prev, anchor_points_x - anchor_points_x_prev);
 
-            ptsx.push_back(ref_x_prev);
-            ptsx.push_back(ref_x);
+            ptsx.push_back(anchor_points_x_prev);
+            ptsx.push_back(anchor_points_x);
 
-            ptsy.push_back(ref_y_prev);
-            ptsy.push_back(ref_y);
+            ptsy.push_back(anchor_points_y_prev);
+            ptsy.push_back(anchor_points_y);
           }
           
           vector<double> next_wp0 = getXY(car_s+30, (2+4*lane), map_waypoints_s, map_waypoints_x, map_waypoints_y);
@@ -191,8 +265,8 @@ int main() {
           // Transforming ptsx, ptsy to car co-ordinates so that they appear on a straight line wrt car
 
           for(int i = 0; i < ptsx.size(); i++) {
-            double shift_x = ptsx[i] - ref_x;
-            double shift_y = ptsy[i] - ref_y;
+            double shift_x = ptsx[i] - anchor_points_x;
+            double shift_y = ptsy[i] - anchor_points_y;
 
             ptsx[i] = (shift_x * cos(0 - ref_yaw) - shift_y * sin(0 - ref_yaw));
             ptsy[i] = (shift_x * sin(0 - ref_yaw) + shift_y * cos(0 - ref_yaw));
@@ -213,14 +287,14 @@ int main() {
             next_y_vals.push_back(previous_path_y[i]);
           }
 
-          double target_x = 30.0;
+          double target_x = 30.0; // 30 meters
           double target_y = s(target_x);
           double target_dist = sqrt((target_x)*(target_x) + (target_y)*(target_y));
 
           double x_add_on = 0;
 
           for(int i = 1; i <= 50 - previous_path_x.size(); i++) {
-            double N = (target_dist/(0.02 * ref_vel / 2.24));
+            double N = (target_dist/(0.02 * ref_vel / 2.24)); // 2.24 is used to convert miles/hr to meters/sec
             double x_point = x_add_on + (target_x) / N;
             double y_point = s(x_point);
 
@@ -233,8 +307,8 @@ int main() {
             x_point = (x_ref * cos(ref_yaw) - y_ref * sin(ref_yaw));
             y_point = (x_ref * sin(ref_yaw) + y_ref * cos(ref_yaw));
 
-            x_point += ref_x;
-            y_point += ref_y;
+            x_point += anchor_points_x;
+            y_point += anchor_points_y;
 
             next_x_vals.push_back(x_point);
             next_y_vals.push_back(y_point);
