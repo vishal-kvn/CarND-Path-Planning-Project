@@ -105,41 +105,21 @@ using the following settings:
 
 Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
 
-## Project Instructions and Rubric
+## Project Submission
+The starting code for this submission is based on the code described under the "Project Q&A" section.
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+### Trajectory Generation
+For smooth lane switching the spline library has been used. The points to initialize the spline are gathered using the car's current position, previous position and 3 other co-ordinates which are obtained using the `getXY` method with s at 30, 60, 90 meters respectively.
+All the points that were part of the initialization are converted to car co-ordinates. Depending on the points used by the simulator new points are created using the spline and these points are then converted to the global co-ordinates and then returned to the simulator.
 
+### Jerk Minimization
+In order to avoids jerks the velocity to the car is gradually increased by *0.1 meters/seconds* until it has attained a speed of *49.5 miles/hours*. After which the car maintains this velocity. Once the car gets close to the car in the front the velocity is gradually decreased by 0.1 meters/second until a safe distance is establish which in this case is 50 points which are 0.02 seconds apart.
 
-## Call for IDE Profiles Pull Requests
+### Lane Switching Logic
+Once the car gets too close to the car in front, it uses the `get_possible_actions`, `get_next_lane` helper methods to determine if it is safe to switch lane. Depending on which lane the car is in, it determines the actions it can take. These are the following cases -
+* Lane 0: Right Turn
+* Lane 1: Left Turn & Right Turn
+* Lane 2: Left Turn
 
-Help your fellow students!
-
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to ensure
-that students don't feel pressured to use one IDE or another.
-
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
-
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
-
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
-
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
-
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
-
+For each possible next lane, the car uses sensor fusion data and predicts the position of the car in the next second. The car determines that the lane is safe to switch if it has a *30 meters* buffer distance in the front and *20 meters* buffer distance in the rear after the switch. If either of these conditions is not met, the car will stay in the same lane maintaining a safe distance from the car in front of it.
+If the car is in the center lane, it favors a left switch. The assumption here is that the left lanes are usually faster.

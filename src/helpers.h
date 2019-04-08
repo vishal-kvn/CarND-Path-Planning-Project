@@ -166,6 +166,9 @@ void print_vector(std::vector<string> const &input) {
   }
 }
 
+/**
+  * Get possible actions for a given lane
+  */
 vector<string> get_possible_actions(int lane) {
   vector<string> possible_actions;
   if(lane == 0) {
@@ -184,6 +187,10 @@ vector<string> get_possible_actions(int lane) {
   return possible_actions;
 }
 
+/**
+  * Get next lane for a given lane.
+  * This method determines if it is safe to switch to a different lane or stick to the current lane.
+  */
 int get_next_lane(int current_lane, bool &switch_lane, vector<string> possible_actions, double car_s, vector<vector<double>> sensor_fusion) {
 
   // For each possible state, from sensor fusion data loop through all the cars from the possible next lane
