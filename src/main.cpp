@@ -14,18 +14,6 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
-void print_vector(std::vector<double> const &input) {
-  for(int i = 0; i < input.size(); i++) {
-    std::cout << input.at(i) << ' ' ;
-  }
-}
-
-void print_vector(std::vector<string> const &input) {
-  for(int i = 0; i < input.size(); i++) {
-    std::cout << input.at(i) << ' ' ;
-  }
-}
-
 int main() {
   uWS::Hub h;
 
@@ -84,6 +72,7 @@ int main() {
         string event = j[0].get<string>();
         
         if (event == "telemetry") {
+          //std::cout <<"!!!!!!!!!! Start Message !!!!!!!!!! \n\n";
           // j[1] is the data JSON object
           
           // Main car's localization Data
@@ -103,7 +92,8 @@ int main() {
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
-          auto sensor_fusion = j[1]["sensor_fusion"];
+          // auto sensor_fusion = j[1]["sensor_fusion"];
+          vector<vector<double>> sensor_fusion = j[1]["sensor_fusion"];
 
           int prev_size = previous_path_x.size();
 
@@ -129,69 +119,14 @@ int main() {
                 //ref_vel = 29.5; //mph
                 too_close = true;
 
-                // if car in the future is within 30 m and it is safe to change lanes, then change lane.
-                //if(lane > 0) {
-                //  lane = 0;
-                //}
-                vector<string> possible_actions;
-                if(lane == 0) {
-                  possible_actions.push_back("Right");
-                } else if(lane == 1) {
-                  possible_actions.push_back("Left");
-                  possible_actions.push_back("Right");
-                } else {
-                  possible_actions.push_back("Left");
-                }
 
-                std::cout << "########## possible_actions ############" << "\n";
-                print_vector(possible_actions);
-                std::cout << "########## possible_actions ############" << "\n";
+                vector<string> possible_actions = get_possible_actions(lane);
 
                 //// Lane switching logic
-                bool switch_lane = true;
+                bool switch_lane = false;
                 int next_lane; 
 
-                // For each possible state, from sensor fusion data loop through all the cars from the possible next lane
-                for(int s = 0; s < possible_actions.size(); s++) {
-                  std::cout << "##########************************* possible_action ############" << "\n";
-                  std::cout << possible_actions[s] << "\n";
-                  std::cout << "########## possible_action ############" << "\n";
-                  if(possible_actions[s] == "Right") {
-                    next_lane = lane + 1; 
-                  } else { 
-                    next_lane = lane - 1; 
-                  } 
-
-                  for(int j = 0; j < sensor_fusion.size(); j++) {
-                    // verify is a car is in the current lane
-                    float df = sensor_fusion[j][6];
-                    if(df < (2 + 4*next_lane +2) && df > (2 + 4*next_lane -2)) {
-                      double vfx = sensor_fusion[j][3];
-                      double vfy = sensor_fusion[j][4];
-                      double check_speed_f = sqrt(vfx*vfx+vfy*vfy);
-                      double check_car_s_f = sensor_fusion[j][5];
-                      //car_s = car_s / 0.5;
-
-                      // 0.02 since the car will visit a point every 0.02 seconds 
-                      // check_car_s_f += (check_speed_f / 2.24 * 0.5); // predict next s for the given car
-                      check_car_s_f += (check_speed_f / 2.24); // predict next s for the given car
-                      //if(((check_car_s_f > car_s) && ((check_car_s_f - car_s) < 30)) || ) {
-                      if(((check_car_s_f > car_s) && ((check_car_s_f - car_s) < 30)) || ((check_car_s_f < car_s) && ((car_s - check_car_s_f) < 30))) {
-                        switch_lane = false;
-                        std::cout << "######## breaking out of inner for loop ###########" << "\n";
-                        break;
-                      }
-                    }
-                  }
-
-                  // favoring left lane switches
-                  if(switch_lane) {
-                    std::cout << "!!!!!!!! switching to left lane !!!!!!!!!!!!" << "\n";
-                    break;
-                  }
-                  switch_lane = true; 
-                  std::cout << "!!!!!!!! left change not possible, looking at the right lane !!!!!!!!!!!!" << "\n";
-                }
+                next_lane = get_next_lane(lane, switch_lane, possible_actions, car_s, sensor_fusion);
 
                 if(switch_lane) {
                   lane = next_lane; 
@@ -200,10 +135,10 @@ int main() {
             }
           }
 
-          std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n"; 
-          std::cout << lane << "\n"; 
-          std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n"; 
-          std::cout << "\n"; 
+          //std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n";
+          //std::cout << lane << "\n";
+          //std::cout << "@@@@@@@@@@@@@@2 next_lane @@@@@@@@@@@@@@@@@" << "\n";
+          //std::cout << "\n";
 
           if (too_close) {
             ref_vel -= .224;
@@ -317,6 +252,7 @@ int main() {
           json msgJson;
           msgJson["next_x"] = next_x_vals;
           msgJson["next_y"] = next_y_vals;
+          //std::cout <<"!!!!!!!!!! End Message !!!!!!!!!! \n\n";
 
           auto msg = "42[\"control\","+ msgJson.dump()+"]";
 

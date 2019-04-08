@@ -154,4 +154,113 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+void print_vector(std::vector<double> const &input) {
+  for(int i = 0; i < input.size(); i++) {
+    std::cout << input.at(i) << ' ' ;
+  }
+}
+
+void print_vector(std::vector<string> const &input) {
+  for(int i = 0; i < input.size(); i++) {
+    std::cout << input.at(i) << ' ' ;
+  }
+}
+
+vector<string> get_possible_actions(int lane) {
+  vector<string> possible_actions;
+  if(lane == 0) {
+    possible_actions.push_back("Right");
+  } else if(lane == 1) {
+    possible_actions.push_back("Left");
+    possible_actions.push_back("Right");
+  } else {
+    possible_actions.push_back("Left");
+  }
+
+  //std::cout << "\n\n########## possible_actions ############" << "\n";
+  //print_vector(possible_actions);
+  //std::cout << "\n########## possible_actions ############" << "\n";
+
+  return possible_actions;
+}
+
+int get_next_lane(int current_lane, bool &switch_lane, vector<string> possible_actions, double car_s, vector<vector<double>> sensor_fusion) {
+
+  // For each possible state, from sensor fusion data loop through all the cars from the possible next lane
+  int next_lane;
+  int safe_front_buffer = 30;
+  int safe_back_buffer = 20;
+  bool switch_left_lane = false;
+  bool switch_right_lane = false;
+
+  std::cout << "\n@@@@@@@@@@@@@@ current_lane: " << current_lane << " @@@@@@@@@@@@@@@@@" << "\n";
+
+  for(int s = 0; s < possible_actions.size(); s++) {
+    string current_action = possible_actions[s];
+    std::cout << "\n########## possible_action: " << current_action << " ############" << "\n";
+    if(current_action == "Left") {
+      next_lane = current_lane - 1; 
+    } else { 
+      next_lane = current_lane + 1; 
+    } 
+
+    for(int j = 0; j < sensor_fusion.size(); j++) {
+      // verify is a car is in the current lane
+      float df = sensor_fusion[j][6];
+      if(df < (2 + 4*next_lane +2) && df > (2 + 4*next_lane -2)) {
+        double vfx = sensor_fusion[j][3];
+        double vfy = sensor_fusion[j][4];
+        double check_speed_f = sqrt(vfx*vfx+vfy*vfy);
+        double check_car_s_f = sensor_fusion[j][5];
+
+        // 0.02 since the car will visit a point every 0.02 seconds 
+        check_car_s_f += (check_speed_f / 2.24); // predict next s for the given car
+        bool front_check_failed = ((check_car_s_f > car_s) && ((check_car_s_f - car_s) < safe_front_buffer));
+        bool rear_check_failed = ((check_car_s_f < car_s) && ((car_s - check_car_s_f) < safe_back_buffer));
+        if(front_check_failed || rear_check_failed) {
+          if(current_action == "Left") {
+            switch_left_lane = false;
+          } else {
+            switch_right_lane = false;
+          } 
+
+          if(front_check_failed) {
+            std::cout << "Front safety check failed ########## \n" ;
+          } else {
+            std::cout << "Rear safety check failed ########## \n" ;
+          }
+          std::cout << "######## cannot change to " << current_action << " lane.\n" ;
+          break;
+        //} else {
+        //  std::cout << "Front and Rear safety check did not fail ########## \n" ;
+        //  std::cout << "j: " << j << "\n";
+        //  std::cout << "sensor_fusion size: " << sensor_fusion.size() << "\n";
+        }
+      }
+
+      // Made it to last sensor fusion data for a possible lane without failing safety checks
+      if(j == (sensor_fusion.size() - 1)) {
+        //std::cout << "Made it to last sensor fusion data for a possible lane without failing safety checks ########## \n" ;
+        if(current_action == "Left") {
+          switch_left_lane = true;
+        } else {
+          switch_right_lane = true;
+        }
+      }
+    }
+
+    // favoring left lane switches
+    if(switch_left_lane) {
+      break;
+    }
+  }
+
+  if((switch_left_lane) || (switch_right_lane)) {
+    std::cout << "!!!!!!!! switching to " << next_lane << " lane !!!!!!!!!!!! by taking\n";
+    switch_lane = true;
+  }
+
+  return next_lane;
+}
+
 #endif  // HELPERS_H
