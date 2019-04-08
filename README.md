@@ -113,13 +113,13 @@ For smooth lane switching the spline library has been used. The points to initia
 All the points that were part of the initialization are converted to car co-ordinates. Depending on the points used by the simulator new points are created using the spline and these points are then converted to the global co-ordinates and then returned to the simulator.
 
 ### Jerk Minimization
-In order to avoids jerks the velocity to the car is gradually increased by *0.1 meters/seconds* until it has attained a speed of *49.5 miles/hours*. After which the car maintains this velocity. Once the car gets close to the car in the front the velocity is gradually decreased by 0.1 meters/second until a safe distance is establish which in this case is 50 points which are 0.02 seconds apart.
+In order to avoids jerks the velocity to the car is gradually increased by **0.1 meters/seconds** until it has attained a speed of **49.5 miles/hours**. After which the car maintains this velocity. Once the car gets close to the car in the front the velocity is gradually decreased by 0.1 meters/second until a safe distance is establish which in this case is 50 points which are 0.02 seconds apart.
 
 ### Lane Switching Logic
-Once the car gets too close to the car in front, it uses the `get_possible_actions`, `get_next_lane` helper methods to determine if it is safe to switch lane. Depending on which lane the car is in, it determines the actions it can take. These are the following cases -
+Once the car gets too close to the car in front, it uses the [get_possible_actions](https://github.com/vishal-kvn/CarND-Path-Planning-Project/blob/master/src/helpers.h#L172), [get_next_lane](https://github.com/vishal-kvn/CarND-Path-Planning-Project/blob/master/src/helpers.h#L194) helper methods to determine if it is safe to switch lane. Depending on which lane the car is in, it determines the actions it can take. These are the following cases -
 * Lane 0: Right Turn
 * Lane 1: Left Turn & Right Turn
 * Lane 2: Left Turn
 
-For each possible next lane, the car uses sensor fusion data and predicts the position of the car in the next second. The car determines that the lane is safe to switch if it has a *30 meters* buffer distance in the front and *20 meters* buffer distance in the rear after the switch. If either of these conditions is not met, the car will stay in the same lane maintaining a safe distance from the car in front of it.
+For each possible next lane, the car uses sensor fusion data and predicts the position of the car in the next second. The car determines that the lane is safe to switch if it has a **30 meters** buffer distance in the front and **20 meters** buffer distance in the rear after the switch. If either of these conditions is not met, the car will stay in the same lane maintaining a safe distance from the car in front of it.
 If the car is in the center lane, it favors a left switch. The assumption here is that the left lanes are usually faster.
